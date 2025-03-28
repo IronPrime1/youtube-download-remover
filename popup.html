@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Direct Download</title>
+  <style>
+    body {
+      font-family: 'Roboto', Arial, sans-serif;
+      width: 300px;
+      padding: 15px;
+      background-color: #282828;
+      color: white;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .header img {
+      width: 24px;
+      height: 24px;
+    }
+    
+    h1 {
+      font-size: 16px;
+      margin: 0;
+      color: #FF0000;
+    }
+    
+    p {
+      font-size: 14px;
+      margin: 0;
+      line-height: 1.4;
+    }
+    
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    
+    label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    input {
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      background-color: #333;
+      color: white;
+    }
+    
+    button {
+      background-color: #FF0000;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    button:hover {
+      background-color: #CC0000;
+    }
+    
+    .status {
+      font-size: 14px;
+      padding: 10px;
+      border-radius: 4px;
+      background-color: #333;
+      display: none;
+    }
+    
+    .status.success {
+      background-color: #43a047;
+      display: block;
+    }
+    
+    .status.error {
+      background-color: #d32f2f;
+      display: block;
+    }
+    
+    footer {
+      margin-top: 15px;
+      font-size: 12px;
+      color: #aaa;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="icons/icon48.png" alt="Extension logo">
+      <h1>YouTube Direct Download</h1>
+    </div>
+    
+    <p>This extension replaces YouTube's download button with a functional one that downloads videos in the highest quality.</p>
+    
+    <div class="input-group">
+      <label for="api-key">RapidAPI Key:</label>
+      <input type="password" id="api-key" placeholder="Enter your RapidAPI key">
+    </div>
+    
+    <button id="save-btn">Save API Key</button>
+    
+    <div id="status-message" class="status"></div>
+    
+    <p>Don't have a RapidAPI key? <a href="https://rapidapi.com/ytdlfree/api/youtube-v31" target="_blank" style="color: #FF0000;">Get one here</a></p>
+    
+    <footer>Visit any YouTube video page and look for the Download button</footer>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
