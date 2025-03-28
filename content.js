@@ -25,25 +25,42 @@ function initExtension() {
 
 function checkAndReplaceButton() {
   // Look for YouTube's download button in both old and new UI versions
+  // Fixed the invalid selector by removing the :has() and :contains() pseudo-selectors that aren't supported in all browsers
   const downloadButtons = [
-    ...document.querySelectorAll('ytd-button-renderer:has(button[aria-label*="Download"])'),
+    ...document.querySelectorAll('ytd-button-renderer[aria-label*="Download"]'),
     ...document.querySelectorAll('button[aria-label*="Download"]'),
-    ...document.querySelectorAll('ytd-menu-service-item-renderer:has(yt-formatted-string:contains("Download"))'),
-    ...document.querySelectorAll('.yt-spec-button-shape-next:has(span:contains("Download"))'),
-    ...document.querySelectorAll('button:has(span:contains("Download"))'),
-    ...document.querySelectorAll('button:has(div:contains("Download"))')
+    ...document.querySelectorAll('ytd-menu-service-item-renderer'),
+    ...document.querySelectorAll('.yt-spec-button-shape-next'),
+    ...document.querySelectorAll('button span')
   ];
   
-  if (downloadButtons.length > 0) {
-    console.log('YouTube Direct Download: Found download buttons', downloadButtons);
-    downloadButtons.forEach(button => {
-      // Completely remove the original button
-      button.style.display = 'none';
+  // Filter the results to only include download-related elements
+  const actualDownloadButtons = downloadButtons.filter(button => {
+    const text = button.textContent || button.innerText;
+    return text && text.toLowerCase().includes('download');
+  });
+  
+  if (actualDownloadButtons.length > 0) {
+    console.log('YouTube Direct Download: Found download buttons', actualDownloadButtons);
+    actualDownloadButtons.forEach(button => {
+      // Find the closest button or clickable parent element
+      let targetButton = button;
+      // Try to get the parent button if this is just text
+      while (targetButton && targetButton.tagName !== 'BUTTON' && targetButton.tagName !== 'A' && targetButton.tagName !== 'YTD-BUTTON-RENDERER') {
+        targetButton = targetButton.parentElement;
+        // Avoid going too far up the DOM
+        if (!targetButton || targetButton === document.body) break;
+      }
+      
+      if (!targetButton) targetButton = button;
+      
+      // Completely hide the original button
+      targetButton.style.display = 'none';
       
       // Check if we already placed our button next to this one
-      const parentElement = button.parentNode;
-      if (!parentElement.querySelector('.yt-direct-download-btn')) {
-        replaceDownloadButton(button);
+      const parentElement = targetButton.parentNode;
+      if (parentElement && !parentElement.querySelector('.yt-direct-download-btn')) {
+        replaceDownloadButton(targetButton);
       }
     });
   } else {
