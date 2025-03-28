@@ -5,8 +5,9 @@ window.addEventListener('load', initExtension);
 // Also handle YouTube's navigation which doesn't always trigger page loads
 document.addEventListener('yt-navigate-finish', initExtension);
 
-let checkInterval;
-let buttonObserver;
+// Declare variables only once at the top level
+let checkInterval = null;
+let buttonObserver = null;
 const RAPID_API_KEY = '98826f73e7msh709657146921ebap1a6058jsn91e7d2b70360'; // Using the provided API key
 
 function initExtension() {
