@@ -4,14 +4,21 @@
   "name": "YouTube Direct Download",
   "version": "1.0",
   "description": "Replace YouTube's download button with a functional one to download videos in highest quality",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": [
+    "activeTab", 
+    "scripting", 
+    "storage", 
+    "tabs"
+  ],
   "host_permissions": [
-    "https://www.youtube.com/*"
+    "https://www.youtube.com/*",
+    "https://youtube-v311.p.rapidapi.com/*"
   ],
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/watch?v=*"],
-      "js": ["content.js"]
+      "js": ["content.js"],
+      "run_at": "document_end"
     }
   ],
   "background": {

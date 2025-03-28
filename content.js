@@ -6,6 +6,7 @@ window.addEventListener('load', initExtension);
 document.addEventListener('yt-navigate-finish', initExtension);
 
 let checkInterval;
+const RAPID_API_KEY = 'YOUR_RAPIDAPI_KEY_HERE'; // Hard-coded API key
 
 function initExtension() {
   console.log('YouTube Direct Download: Initializing extension...');
@@ -28,29 +29,37 @@ function checkAndReplaceButton() {
     ...document.querySelectorAll('ytd-button-renderer:has(button[aria-label*="Download"])'),
     ...document.querySelectorAll('button[aria-label*="Download"]'),
     ...document.querySelectorAll('ytd-menu-service-item-renderer:has(yt-formatted-string:contains("Download"))'),
-    ...document.querySelectorAll('.yt-spec-button-shape-next:has(span:contains("Download"))')
+    ...document.querySelectorAll('.yt-spec-button-shape-next:has(span:contains("Download"))'),
+    ...document.querySelectorAll('button:has(span:contains("Download"))'),
+    ...document.querySelectorAll('button:has(div:contains("Download"))')
   ];
   
   if (downloadButtons.length > 0) {
-    console.log('YouTube Direct Download: Found download buttons', downloadButtons.length);
+    console.log('YouTube Direct Download: Found download buttons', downloadButtons);
     downloadButtons.forEach(button => {
-      replaceDownloadButton(button);
+      // Completely remove the original button
+      button.style.display = 'none';
+      
+      // Check if we already placed our button next to this one
+      const parentElement = button.parentNode;
+      if (!parentElement.querySelector('.yt-direct-download-btn')) {
+        replaceDownloadButton(button);
+      }
+    });
+  } else {
+    // Try finding buttons in the more options menu
+    const moreOptionsButtons = document.querySelectorAll('button[aria-label="More actions"], button.yt-spec-button-shape-next--tonal');
+    moreOptionsButtons.forEach(button => {
+      // Add our download button next to the more options button
+      if (button && !button.nextSibling?.classList?.contains('yt-direct-download-btn')) {
+        const customButton = createCustomButton();
+        button.parentNode.insertBefore(customButton, button.nextSibling);
+      }
     });
   }
 }
 
-function replaceDownloadButton(originalButton) {
-  // Don't replace if already replaced
-  if (originalButton.dataset.replaced === 'true') {
-    return;
-  }
-  
-  // Mark as replaced to prevent multiple replacements
-  originalButton.dataset.replaced = 'true';
-  
-  // Hide the original button
-  originalButton.style.display = 'none';
-  
+function createCustomButton() {
   // Create our custom button
   const customButton = document.createElement('button');
   customButton.className = 'yt-direct-download-btn';
@@ -66,6 +75,7 @@ function replaceDownloadButton(originalButton) {
   customButton.style.cursor = 'pointer';
   customButton.style.display = 'flex';
   customButton.style.alignItems = 'center';
+  customButton.style.zIndex = '9999'; // Ensure our button is on top
   
   // Add download icon
   const downloadIcon = document.createElement('span');
@@ -88,6 +98,16 @@ function replaceDownloadButton(originalButton) {
   
   // Add click event to handle the download
   customButton.addEventListener('click', handleDownloadClick);
+  
+  return customButton;
+}
+
+function replaceDownloadButton(originalButton) {
+  // Completely remove the original button
+  originalButton.style.display = 'none';
+  
+  // Create and add our custom button
+  const customButton = createCustomButton();
   
   // Insert our button after the original
   originalButton.parentNode.insertBefore(customButton, originalButton.nextSibling);
@@ -152,11 +172,11 @@ function handleDownloadClick(e) {
 
 async function fetchVideoDownloadLink(videoId) {
   try {
-    // Using the RapidAPI YouTube v3 API
+    // Using the RapidAPI YouTube v3 API with hardcoded key
     const options = {
       method: 'GET',
       headers: {
-        'X-RapidAPI-Key': 'YOUR_RAPIDAPI_KEY', // User needs to set this in the extension popup
+        'X-RapidAPI-Key': RAPID_API_KEY,
         'X-RapidAPI-Host': 'youtube-v311.p.rapidapi.com'
       }
     };
@@ -164,6 +184,8 @@ async function fetchVideoDownloadLink(videoId) {
     // First get video info
     const response = await fetch(`https://youtube-v311.p.rapidapi.com/video/?id=${videoId}`, options);
     const data = await response.json();
+    
+    console.log('API response:', data);
     
     // Parse the formats to find the highest quality
     if (data && data.streamingData && data.streamingData.formats) {
