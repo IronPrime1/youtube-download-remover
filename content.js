@@ -6,7 +6,8 @@ window.addEventListener('load', initExtension);
 document.addEventListener('yt-navigate-finish', initExtension);
 
 let checkInterval;
-const RAPID_API_KEY = 'YOUR_RAPIDAPI_KEY_HERE'; // Hard-coded API key
+let buttonObserver;
+const RAPID_API_KEY = '98826f73e7msh709657146921ebap1a6058jsn91e7d2b70360'; // Using the provided API key
 
 function initExtension() {
   console.log('YouTube Direct Download: Initializing extension...');
@@ -16,16 +17,31 @@ function initExtension() {
     clearInterval(checkInterval);
   }
   
-  // Check periodically for the download button to appear
-  checkInterval = setInterval(checkAndReplaceButton, 1000);
+  // Disconnect previous observer if exists
+  if (buttonObserver) {
+    buttonObserver.disconnect();
+  }
   
-  // Also try immediately
+  // Check once immediately
   checkAndReplaceButton();
+  
+  // Set up a mutation observer to watch for YouTube UI changes
+  buttonObserver = new MutationObserver(function(mutations) {
+    checkAndReplaceButton();
+  });
+  
+  // Observe the entire document for changes, but be specific about what we watch
+  buttonObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  
+  // Also set a backup interval but with longer delay (5 seconds)
+  checkInterval = setInterval(checkAndReplaceButton, 5000);
 }
 
 function checkAndReplaceButton() {
   // Look for YouTube's download button in both old and new UI versions
-  // Fixed the invalid selector by removing the :has() and :contains() pseudo-selectors that aren't supported in all browsers
   const downloadButtons = [
     ...document.querySelectorAll('ytd-button-renderer[aria-label*="Download"]'),
     ...document.querySelectorAll('button[aria-label*="Download"]'),
@@ -137,10 +153,10 @@ function handleDownloadClick(e) {
   e.stopPropagation();
   
   const button = e.currentTarget;
-  const videoId = extractVideoId(window.location.href);
+  const currentUrl = window.location.href;
   
-  if (!videoId) {
-    showToast('Could not identify video. Please try again.');
+  if (!currentUrl.includes('youtube.com/watch')) {
+    showToast('This is not a valid YouTube video page.');
     return;
   }
   
@@ -149,89 +165,80 @@ function handleDownloadClick(e) {
   button.innerHTML = 'Getting download link...';
   button.style.backgroundColor = '#888888';
   
-  fetchVideoDownloadLink(videoId)
-    .then(downloadLink => {
-      if (downloadLink) {
-        // Create a temporary link to trigger download
-        const downloadLinkElement = document.createElement('a');
-        downloadLinkElement.href = downloadLink;
-        downloadLinkElement.download = `youtube-video-${videoId}.mp4`;
-        document.body.appendChild(downloadLinkElement);
-        downloadLinkElement.click();
-        document.body.removeChild(downloadLinkElement);
+  // Use the provided XHR code with the current video URL
+  const xhr = new XMLHttpRequest();
+  xhr.withCredentials = true;
+  
+  xhr.addEventListener('readystatechange', function() {
+    if (this.readyState === this.DONE) {
+      try {
+        const response = JSON.parse(this.responseText);
+        console.log('API Response:', response);
         
-        showToast('Download started!');
-      } else {
-        showToast('Download failed. Please try again.');
-      }
-    })
-    .catch(error => {
-      console.error('YouTube Direct Download:', error);
-      showToast('Error fetching download link. Please try again.');
-    })
-    .finally(() => {
-      // Reset button
-      button.disabled = false;
-      button.innerHTML = 'Download Video';
-      button.style.backgroundColor = '#FF0000';
-      
-      // Add download icon back
-      const downloadIcon = document.createElement('span');
-      downloadIcon.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" style="margin-right: 8px;" viewBox="0 0 16 16">
-          <path d="M8 2a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 8.293V2.5A.5.5 0 0 1 8 2z"/>
-          <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/>
-        </svg>
-      `;
-      button.prepend(downloadIcon);
-    });
-}
-
-async function fetchVideoDownloadLink(videoId) {
-  try {
-    // Using the RapidAPI YouTube v3 API with hardcoded key
-    const options = {
-      method: 'GET',
-      headers: {
-        'X-RapidAPI-Key': RAPID_API_KEY,
-        'X-RapidAPI-Host': 'youtube-v311.p.rapidapi.com'
-      }
-    };
-    
-    // First get video info
-    const response = await fetch(`https://youtube-v311.p.rapidapi.com/video/?id=${videoId}`, options);
-    const data = await response.json();
-    
-    console.log('API response:', data);
-    
-    // Parse the formats to find the highest quality
-    if (data && data.streamingData && data.streamingData.formats) {
-      const formats = data.streamingData.formats;
-      
-      // Sort by quality (height) in descending order
-      const sortedFormats = formats.sort((a, b) => b.height - a.height);
-      
-      // Return the URL of the highest quality format
-      if (sortedFormats.length > 0) {
-        return sortedFormats[0].url;
+        if (response && response.error) {
+          showToast('Error: ' + response.error);
+        } else if (response && response.url) {
+          // Create a temporary link to trigger download
+          const downloadLinkElement = document.createElement('a');
+          downloadLinkElement.href = response.url;
+          downloadLinkElement.download = 'youtube-video.mp4';
+          document.body.appendChild(downloadLinkElement);
+          downloadLinkElement.click();
+          document.body.removeChild(downloadLinkElement);
+          
+          showToast('Download started!');
+        } else {
+          showToast('Could not get download link. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error parsing response:', error);
+        showToast('Error processing download. Please try again.');
+      } finally {
+        // Reset button
+        resetButton(button);
       }
     }
-    
-    throw new Error('No downloadable formats found');
-  } catch (error) {
-    console.error('Error fetching video download link:', error);
-    throw error;
-  }
+  });
+  
+  // Add error handling
+  xhr.addEventListener('error', function() {
+    showToast('Network error. Please check your internet connection.');
+    resetButton(button);
+  });
+  
+  xhr.addEventListener('timeout', function() {
+    showToast('Request timed out. Please try again.');
+    resetButton(button);
+  });
+  
+  // Set a timeout
+  xhr.timeout = 30000; // 30 seconds
+  
+  // Get the video URL
+  const apiUrl = `https://youtube-video-downloader-4k-and-8k-mp3.p.rapidapi.com/download.php?button=1&start=1&end=1&format=mp4&url=${encodeURIComponent(currentUrl)}`;
+  
+  xhr.open('GET', apiUrl);
+  xhr.setRequestHeader('x-rapidapi-key', RAPID_API_KEY);
+  xhr.setRequestHeader('x-rapidapi-host', 'youtube-video-downloader-4k-and-8k-mp3.p.rapidapi.com');
+  
+  xhr.send(null);
 }
 
-function extractVideoId(url) {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.searchParams.get('v');
-  } catch (e) {
-    console.error('Error extracting video ID:', e);
-    return null;
-  }
+function resetButton(button) {
+  // Reset button
+  button.disabled = false;
+  button.innerHTML = 'Download Video';
+  button.style.backgroundColor = '#FF0000';
+  
+  // Add download icon back
+  const downloadIcon = document.createElement('span');
+  downloadIcon.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" style="margin-right: 8px;" viewBox="0 0 16 16">
+      <path d="M8 2a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 .708-.708L7.5 8.293V2.5A.5.5 0 0 1 8 2z"/>
+      <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/>
+    </svg>
+  `;
+  button.prepend(downloadIcon);
 }
 
 function showToast(message, duration = 3000) {
